@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biyeni (to-do List)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        input[type="text"], input[type="number"] {
+            padding: 10px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            width: 200px;
+        }
+        button {
+            padding: 10px 15px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            padding: 10px;
+            background: #f4f4f4;
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        li.complete {
+            text-decoration: line-through;
+            color: gray;
+        }
+        li button {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+        }
+        li input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        .gauge {
+            width: 100%;
+            height: 30px;
+            background-color: #e0e0e0;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .gauge-fill {
+            height: 100%;
+            background-color: #4caf50;
+            border-radius: 15px;
+            width: 100%;
+            transition: width 0.3s;
+        }
+        .gauge-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .input-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .input-container input {
+            flex: 1;
+        }
+        .checkbox-container {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        #date-picker {
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        #lock-button {
+            margin-top: 20px;
+            background-color: #ff9800;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            display: none; /* Hidden by default */
+        }
+        #lock-button:disabled {
+            background-color: grey;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1 id="list-title">Biyeni - To-Do List</h1>
+
+    <!-- Time remaining gauge -->
+    <div class="gauge">
+        <div class="gauge-fill" id="gauge-fill"></div>
+        <div class="gauge-text" id="gauge-text">24h remaining</div>
+    </div>
+
+    <!-- Date picker for selecting the day -->
+    <input type="date" id="date-picker" onchange="updateDate()">
+
+    <div class="input-container">
+        <input type="text" id="new-task" placeholder="Add new task">
+        <input type="number" id="task-duration" placeholder="Hours (e.g. 1.5)" step="0.5" min="0.5">
+        <button id="add-task-button" onclick="addTask()">Add Task</button>
+    </div>
+
+    <!-- Checkboxes for routines and hobbies -->
+    <div class="checkbox-container">
+        <label>
+            <input type="checkbox" id="routines-checkbox" onclick="toggleRoutines()"> Routines
+        </label>
+        <label>
+            <input type="checkbox" id="hobbies-checkbox" onclick="toggleHobbies()"> Hobbies
+        </label>
+    </div>
+
+    <ul id="task-list">
+        <!-- Tasks will appear here -->
+    </ul>
+
+    <!-- Lock and Execute Button -->
+    <button id="lock-button" onclick="lockAndExecute()">LOCK and EXECUTE</button>
+
+    <script>
+        const totalDayHours = 24;
+        let remainingHours = totalDayHours;
+
+        // Update the title when a new date is selected
+        function updateDate() {
+            const datePicker = document.getElementById("date-picker");
+            const selectedDate = datePicker.value;
+
+            if (selectedDate) {
+                const listTitle = document.getElementById("list-title");
+                const date = new Date(selectedDate);
+                const formattedDate = date.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                listTitle.textContent = `Biyeni - To-Do List for ${formattedDate}`;
+            }
+        }
+
+        function addTask(taskText = null, taskDuration = null) {
+            const taskInput = document.getElementById("new-task");
+            const taskDurationInput = document.getElementById("task-duration");
+
+            taskText = taskText || taskInput.value;
+            taskDuration = taskDuration || parseFloat(taskDurationInput.value);
+
+            if (taskText === "" || isNaN(taskDuration) || taskDuration <= 0) {
+                alert("Please enter a valid task and duration");
+                return;
+            }
+
+            const chunks = taskDuration * 2;
+
+            if (taskDuration > remainingHours) {
+                alert("Not enough time remaining in the day for this task");
+                return;
+            }
+
+            const taskList = document.getElementById("task-list");
+
+            for (let i = 1; i <= chunks; i++) {
+                const li = document.createElement("li");
+                li.innerHTML = `
+                    <input type="checkbox" onchange="toggleComplete(this)">
+                    <span>${taskText} (Part ${i}/${chunks})</span>
+                    <button onclick="removeTask(this)">Remove</button>
+                `;
+                taskList.appendChild(li);
+            }
+
+            remainingHours -= taskDuration;
+            updateGauge();
+
+            taskInput.value = "";
+            taskDurationInput.value = "";
+
+            if (remainingHours <= 0) {
+                document.getElementById("lock-button").style.display = "block";
+                document.getElementById("add-task-button").disabled = true;
+            }
+        }
+
+        function removeTask(button) {
+            const li = button.parentElement;
+            li.remove();
+        }
+
+        function toggleComplete(checkbox) {
+            const li = checkbox.parentElement;
+            if (checkbox.checked) {
+                li.classList.add("complete");
+            } else {
+                li.classList.remove("complete");
+            }
+
+            // Check if all tasks are complete to unlock the page
+            const allCheckboxes = document.querySelectorAll('#task-list input[type="checkbox"]');
+            const allCompleted = [...allCheckboxes].every(checkbox => checkbox.checked);
+
+            if (allCompleted) {
+                alert("Congratulations, you have nailed it!");
+            }
+
+            document.getElementById("lock-button").disabled = !allCompleted;
+        }
+
+        function updateGauge() {
+            const gaugeFill = document.getElementById("gauge-fill");
+            const gaugeText = document.getElementById("gauge-text");
+
+            const percentage = (remainingHours / totalDayHours) * 100;
+            gaugeFill.style.width = percentage + "%";
+            gaugeText.innerText = remainingHours + "h remaining";
+        }
+
+        function toggleRoutines() {
+            const routinesCheckbox = document.getElementById("routines-checkbox");
+
+            if (routinesCheckbox.checked) {
+                addTask("Sleeping", 6);
+                addTask("Travel to work", 0.75);
+                addTask("Travel back from work", 0.75);
+                addTask("Lunch", 1);
+                addTask("Supper", 2);
+                addTask("Jogging and preparations", 1);
+            }
+        }
+
+        function toggleHobbies() {
+            const hobbiesCheckbox = document.getElementById("hobbies-checkbox");
+
+            if (hobbiesCheckbox.checked) {
+                addTask("Martial Arts / Toastmasters", 2);
+            }
+        }
+
+        // Function for locking and executing once 24h tasks are added
+        function lockAndExecute() {
+            alert("All tasks locked. Execute your tasks!");
+            document.getElementById("add-task-button").disabled = true;
+            document.getElementById("new-task").disabled = true;
+            document.getElementById("task-duration").disabled = true;
+        }
+    </script>
+</body>
+</html>
